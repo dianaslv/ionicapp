@@ -1,4 +1,5 @@
 export interface ItemProps {
-  id?: string;
+  _id?: string;
   text: string;
+  breed: string;
 }
