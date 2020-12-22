@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useReducer } from 'react';
+import React, { useCallback, useContext, useEffect, useReducer } from 'react';
 import PropTypes from 'prop-types';
 import { getLogger } from '../core';
 import { ItemProps } from './ItemProps';
 import { createItem, getItems, newWebSocket, updateItem } from './itemApi';
+import { AuthContext } from '../auth';
 
 const log = getLogger('ItemProvider');
 
@@ -24,7 +25,7 @@ interface ActionProps {
 
 const initialState: ItemsState = {
   fetching: false,
-  saving: false,
+  saving: false
 };
 
 const FETCH_ITEMS_STARTED = 'FETCH_ITEMS_STARTED';
@@ -48,7 +49,7 @@ const reducer: (state: ItemsState, action: ActionProps) => ItemsState =
       case SAVE_ITEM_SUCCEEDED:
         const items = [...(state.items || [])];
         const item = payload.item;
-        const index = items.findIndex(it => it.id === item.id);
+        const index = items.findIndex(it => it._id === item._id);
         if (index === -1) {
           items.splice(0, 0, item);
         } else {
@@ -69,12 +70,14 @@ interface ItemProviderProps {
 }
 
 export const ItemProvider: React.FC<ItemProviderProps> = ({ children }) => {
+  const { storage, tokenFound } = useContext(AuthContext);
   const [state, dispatch] = useReducer(reducer, initialState);
-  const { items, fetching, fetchingError, saving, savingError } = state;
-  useEffect(getItemsEffect, []);
-  useEffect(wsEffect, []);
-  const saveItem = useCallback<SaveItemFn>(saveItemCallback, []);
-  const value = { items, fetching, fetchingError, saving, savingError, saveItem };
+  const { items, fetching, fetchingError, saving, savingError} = state;
+
+  useEffect(getItemsEffect, [storage, tokenFound]);
+  useEffect(wsEffect, [storage, tokenFound]);
+  const saveItem = useCallback<SaveItemFn>(saveItemCallback, [storage, tokenFound]);
+  const value = { items, fetching, fetchingError, saving, savingError, saveItem, storage };
   log('returns');
   return (
     <ItemContext.Provider value={value}>
@@ -84,24 +87,42 @@ export const ItemProvider: React.FC<ItemProviderProps> = ({ children }) => {
 
   function getItemsEffect() {
     let canceled = false;
+    console.log("hey from here")
     fetchItems();
     return () => {
       canceled = true;
     }
 
     async function fetchItems() {
-      try {
-        log('fetchItems started');
-        dispatch({ type: FETCH_ITEMS_STARTED });
-        const items = await getItems();
-        log('fetchItems succeeded');
-        if (!canceled) {
-          dispatch({ type: FETCH_ITEMS_SUCCEEDED, payload: { items } });
+        let res = await storage.get({ key: 'token' });
+        console.log(res);
+        if (!res?.value?.trim()) {
+          return;
         }
-      } catch (error) {
-        log('fetchItems failed');
-        dispatch({ type: FETCH_ITEMS_FAILED, payload: { error } });
-      }
+        try {
+          if(res?.value){
+            log('fetchItems started');
+            dispatch({ type: FETCH_ITEMS_STARTED });
+            const items = await getItems(res?.value);
+            console.log(items,JSON.stringify(items));
+            log('fetchItems succeeded');
+            if (!canceled) {
+              console.log(items);
+              await storage.set({
+                key: 'items',
+                value: JSON.stringify(items),
+              });
+              dispatch({ type: FETCH_ITEMS_SUCCEEDED, payload: { items } });
+            }
+          }
+        } catch (error) {
+          log('fetchItems failed');
+          const itemsStorage = await storage.get({key: 'items'});
+          if(itemsStorage === undefined) dispatch({ type: FETCH_ITEMS_SUCCEEDED, payload: []  });
+          else{
+            dispatch({ type: FETCH_ITEMS_SUCCEEDED, payload: { itemsStorage } });
+          }
+        }
     }
   }
 
@@ -109,9 +130,16 @@ export const ItemProvider: React.FC<ItemProviderProps> = ({ children }) => {
     try {
       log('saveItem started');
       dispatch({ type: SAVE_ITEM_STARTED });
-      const savedItem = await (item.id ? updateItem(item) : createItem(item));
-      log('saveItem succeeded');
-      dispatch({ type: SAVE_ITEM_SUCCEEDED, payload: { item: savedItem } });
+        const res = await storage.get({ key: 'token' });
+        const savedItem = await (item._id ? updateItem(res?.value, item) : createItem(res?.value, item));
+        const items = await getItems(res?.value);
+        console.log(items);
+        await storage.set({
+          key: 'items',
+          value: JSON.stringify(items),
+        });
+        log('saveItem succeeded');
+        dispatch({ type: SAVE_ITEM_SUCCEEDED, payload: { item: savedItem } });
     } catch (error) {
       log('saveItem failed');
       dispatch({ type: SAVE_ITEM_FAILED, payload: { error } });
@@ -119,22 +147,27 @@ export const ItemProvider: React.FC<ItemProviderProps> = ({ children }) => {
   }
 
   function wsEffect() {
-    let canceled = false;
-    log('wsEffect - connecting');
-    const closeWebSocket = newWebSocket(message => {
-      if (canceled) {
-        return;
+    storage.get({ key: 'token' }).then((res=>{
+      let canceled = false;
+      log('wsEffect - connecting');
+      let closeWebSocket: () => void;
+      if (res?.value?.trim()) {
+        closeWebSocket = newWebSocket(res?.value, message => {
+          if (canceled) {
+            return;
+          }
+          const { type, payload: item } = message;
+          log(`ws message, item ${type}`);
+          if (type === 'created' || type === 'updated') {
+            dispatch({ type: SAVE_ITEM_SUCCEEDED, payload: { item } });
+          }
+        });
       }
-      const { event, payload: { item }} = message;
-      log(`ws message, item ${event}`);
-      if (event === 'created' || event === 'updated') {
-        dispatch({ type: SAVE_ITEM_SUCCEEDED, payload: { item } });
+      return () => {
+        log('wsEffect - disconnecting');
+        canceled = true;
+        closeWebSocket?.();
       }
-    });
-    return () => {
-      log('wsEffect - disconnecting');
-      canceled = true;
-      closeWebSocket();
-    }
+    }));
   }
 };

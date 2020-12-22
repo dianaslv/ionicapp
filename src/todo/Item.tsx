@@ -3,13 +3,14 @@ import { IonItem, IonLabel } from '@ionic/react';
 import { ItemProps } from './ItemProps';
 
 interface ItemPropsExt extends ItemProps {
-  onEdit: (id?: string) => void;
+  onEdit: (_id?: string) => void;
 }
 
-const Item: React.FC<ItemPropsExt> = ({ id, text, onEdit }) => {
+const Item: React.FC<ItemPropsExt> = ({ _id, text,breed, onEdit }) => {
   return (
-    <IonItem onClick={() => onEdit(id)}>
-      <IonLabel>{text}</IonLabel>
+    <IonItem onClick={() => onEdit(_id)}>
+        <IonLabel>{text}</IonLabel>
+        <IonLabel>{breed}</IonLabel>
     </IonItem>
   );
 };
