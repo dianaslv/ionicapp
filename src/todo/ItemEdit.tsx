@@ -14,6 +14,8 @@ import { getLogger } from '../core';
 import { ItemContext } from './ItemProvider';
 import { RouteComponentProps } from 'react-router';
 import { ItemProps } from './ItemProps';
+import {useNetwork} from "../useNetwork";
+import {useBackgroundTask} from "../useBackgroundTask";
 
 const log = getLogger('ItemEdit');
 
@@ -26,6 +28,11 @@ const ItemEdit: React.FC<ItemEditProps> = ({ history, match }) => {
   const [text, setText] = useState('');
   const [breed, setBreed] = useState('');
   const [item, setItem] = useState<ItemProps>();
+  const { networkStatus } = useNetwork();
+  useBackgroundTask(() => new Promise(resolve => {
+    console.log('My Background Task');
+    resolve();
+  }));
   useEffect(() => {
     log('useEffect');
     const routeId = match.params.id || '';
@@ -38,7 +45,7 @@ const ItemEdit: React.FC<ItemEditProps> = ({ history, match }) => {
   }, [match.params.id, items]);
   const handleSave = () => {
     const editedItem = item ? { ...item, text, breed } : { text, breed };
-    saveItem && saveItem(editedItem).then(() => history.goBack());
+    saveItem && saveItem(editedItem).then(() => history.push('/items'));
   };
   log('render');
   return (

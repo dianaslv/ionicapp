@@ -20,16 +20,37 @@ import { getLogger } from '../core';
 import { ItemContext } from './ItemProvider';
 import {AuthContext} from "../auth";
 import {ItemProps} from "./ItemProps";
+import {useBackgroundTask} from "../useBackgroundTask";
+import {createItem, updateItem} from "./itemApi";
+import {useNetwork} from "../useNetwork";
 
 const log = getLogger('ItemList');
 
 const ItemList: React.FC<RouteComponentProps> = ({ history }) => {
   const [filter, setFilter] = useState<string | undefined>(undefined);
-  const { items, fetching, fetchingError } = useContext(ItemContext);
+  const { items, fetching, fetchingError, unsavedData, clearUnsavedData, saveItem } = useContext(ItemContext);
   const [filteredItems, setFilteredItems] = useState<ItemProps[]| undefined>(items);
   const [searchValue, setSearchValue] = useState<string>('');
   const { storage } = useContext(AuthContext);
   let storageItems: any[] = [];
+  const { networkStatus } = useNetwork();
+
+  useBackgroundTask(() => new Promise(async resolve => {
+    console.log(networkStatus.connected)
+    if(networkStatus.connected){
+      console.log({unsavedData});
+
+      unsavedData?.map(async (item) => {
+        if (saveItem) {
+          await saveItem(item)
+        }
+      });
+      clearUnsavedData();
+      console.log({unsavedData});
+      console.log('My Background Task');
+      resolve();
+    }
+  }));
 
 
   useEffect(() => {
@@ -123,11 +144,11 @@ const ItemList: React.FC<RouteComponentProps> = ({ history }) => {
           <div>{fetchingError.message || 'Failed to fetch items'}</div>
         )}
 
-        {items && <IonFab vertical="bottom" horizontal="end" slot="fixed">
+        <IonFab vertical="bottom" horizontal="end" slot="fixed">
             <IonFabButton onClick={() => history.push('/item')}>
             <IonIcon icon={add}/>
           </IonFabButton>
-        </IonFab>}
+        </IonFab>
       </IonContent>
     </IonPage>
   );
