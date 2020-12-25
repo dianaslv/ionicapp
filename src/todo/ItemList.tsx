@@ -12,9 +12,9 @@ import {
   IonTitle,
   IonToolbar,
   IonInfiniteScroll,
-  IonInfiniteScrollContent, IonSelect, IonSearchbar, useIonViewWillEnter
+  IonInfiniteScrollContent, IonSelect, IonSearchbar, useIonViewWillEnter, IonActionSheet
 } from '@ionic/react';
-import {add, closeOutline, logOut} from 'ionicons/icons';
+import {add, closeOutline, close,logOut, trash} from 'ionicons/icons';
 import Item from './Item';
 import { getLogger } from '../core';
 import { ItemContext } from './ItemProvider';
@@ -23,6 +23,7 @@ import {ItemProps} from "./ItemProps";
 import {useBackgroundTask} from "../useBackgroundTask";
 import {createItem, updateItem} from "./itemApi";
 import {useNetwork} from "../useNetwork";
+import {Photo, usePhotoGallery} from "./usePhotoGallery";
 
 const log = getLogger('ItemList');
 
@@ -32,7 +33,9 @@ const ItemList: React.FC<RouteComponentProps> = ({ history }) => {
   const [filteredItems, setFilteredItems] = useState<ItemProps[]| undefined>(items);
   const [searchValue, setSearchValue] = useState<string>('');
   const { storage } = useContext(AuthContext);
+  const { photos, deletePhoto, takePhoto, tempPhotos } = usePhotoGallery();
   let storageItems: any[] = [];
+  const [photoToDelete, setPhotoToDelete] = useState<Photo>();
   const { networkStatus } = useNetwork();
 
   useBackgroundTask(() => new Promise(async resolve => {
@@ -137,7 +140,7 @@ const ItemList: React.FC<RouteComponentProps> = ({ history }) => {
           <IonList>
             {filteredItems
                 .filter(({ _id, text }) => text.indexOf(searchValue) >= 0)
-                .map(({ _id, text,breed }) => <Item key={_id} _id={_id} text={text} onEdit={id => history.push(`/item/${id}`)} breed={breed}/>)}
+                .map(({ _id, text,breed }) => <Item key={_id} _id={_id} text={text} onEdit={id => history.push(`/item/${id}`)} breed={breed} photos={photos}/>)}
           </IonList>
         }
         {fetchingError && (
@@ -149,6 +152,25 @@ const ItemList: React.FC<RouteComponentProps> = ({ history }) => {
             <IonIcon icon={add}/>
           </IonFabButton>
         </IonFab>
+        <IonActionSheet
+            isOpen={!!photoToDelete}
+            buttons={[{
+              text: 'Delete',
+              role: 'destructive',
+              icon: trash,
+              handler: () => {
+                if (photoToDelete) {
+                  deletePhoto(photoToDelete);
+                  setPhotoToDelete(undefined);
+                }
+              }
+            }, {
+              text: 'Cancel',
+              icon: close,
+              role: 'cancel'
+            }]}
+            onDidDismiss={() => setPhotoToDelete(undefined)}
+        />
       </IonContent>
     </IonPage>
   );

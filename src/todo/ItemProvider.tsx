@@ -6,6 +6,7 @@ import { createItem, getItems, newWebSocket, updateItem } from './itemApi';
 import { AuthContext } from '../auth';
 import {useNetwork} from "../useNetwork";
 import {useBackgroundTask} from "../useBackgroundTask";
+import {usePhotoGallery} from "./usePhotoGallery";
 
 const log = getLogger('ItemProvider');
 
@@ -94,6 +95,7 @@ export const ItemProvider: React.FC<ItemProviderProps> = ({ children }) => {
   const [state, dispatch] = useReducer(reducer, initialState);
   const { items, fetching, fetchingError, saving, savingError, unsavedData} = state;
   const { networkStatus } = useNetwork();
+  const { setPhotosForItem } = usePhotoGallery();
 
   useBackgroundTask(() => new Promise(async resolve => {
     console.log(networkStatus.connected)
@@ -175,6 +177,8 @@ export const ItemProvider: React.FC<ItemProviderProps> = ({ children }) => {
         dispatch({ type: SAVE_ITEM_STARTED });
         const res = await storage.get({ key: 'token' });
         const savedItem = await (item._id ? updateItem(res?.value, item) : createItem(res?.value, item));
+        // @ts-ignore
+        setPhotosForItem(savedItem['_id']);
         const items = await getItems(res?.value);
         console.log(items);
         await storage.set({

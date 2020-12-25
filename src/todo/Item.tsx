@@ -1,16 +1,25 @@
 import React from 'react';
-import { IonItem, IonLabel } from '@ionic/react';
+import {IonCol, IonGrid, IonImg, IonItem, IonLabel, IonRow} from '@ionic/react';
 import { ItemProps } from './ItemProps';
 
 interface ItemPropsExt extends ItemProps {
   onEdit: (_id?: string) => void;
 }
 
-const Item: React.FC<ItemPropsExt> = ({ _id, text,breed, onEdit }) => {
+const Item: React.FC<ItemPropsExt> = ({ _id, text,breed, photos, onEdit }) => {
   return (
     <IonItem onClick={() => onEdit(_id)}>
         <IonLabel>{text}</IonLabel>
         <IonLabel>{breed}</IonLabel>
+        <IonGrid>
+            <IonRow>
+                {photos.map((photo, index) => (
+                    <IonCol size="6" key={index}>
+                        <IonImg src={photo.webviewPath}/>
+                    </IonCol>
+                ))}
+            </IonRow>
+        </IonGrid>
     </IonItem>
   );
 };
