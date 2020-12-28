@@ -29,11 +29,10 @@ const log = getLogger('ItemList');
 
 const ItemList: React.FC<RouteComponentProps> = ({ history }) => {
   const [filter, setFilter] = useState<string | undefined>(undefined);
-  const { items, fetching, fetchingError, unsavedData, clearUnsavedData, saveItem } = useContext(ItemContext);
+  const { items, fetching, fetchingError, unsavedData, clearUnsavedData, saveItem,photos, takePhoto, deletePhoto } = useContext(ItemContext);
   const [filteredItems, setFilteredItems] = useState<ItemProps[]| undefined>(items);
   const [searchValue, setSearchValue] = useState<string>('');
   const { storage } = useContext(AuthContext);
-  const { photos, deletePhoto, takePhoto, tempPhotos } = usePhotoGallery();
   let storageItems: any[] = [];
   const [photoToDelete, setPhotoToDelete] = useState<Photo>();
   const { networkStatus } = useNetwork();

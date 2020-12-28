@@ -20,7 +20,10 @@ export interface ItemsState {
   savingError?: Error | null,
   saveItem?: SaveItemFn,
   unsavedData?: ItemProps[],
-  clearUnsavedData?: any
+  clearUnsavedData?: any,
+  photos?: any,
+  takePhoto?: any,
+  deletePhoto?: any,
 }
 
 interface ActionProps {
@@ -95,7 +98,7 @@ export const ItemProvider: React.FC<ItemProviderProps> = ({ children }) => {
   const [state, dispatch] = useReducer(reducer, initialState);
   const { items, fetching, fetchingError, saving, savingError, unsavedData} = state;
   const { networkStatus } = useNetwork();
-  const { setPhotosForItem } = usePhotoGallery();
+  const { photos, takePhoto, deletePhoto, } = usePhotoGallery();
 
   useBackgroundTask(() => new Promise(async resolve => {
     console.log(networkStatus.connected)
@@ -119,7 +122,7 @@ export const ItemProvider: React.FC<ItemProviderProps> = ({ children }) => {
   const clearUnsavedData=()=>{
     dispatch({ type: CLEAN_UNPROCESSED_ITEMS});
   }
-  const value = { items, fetching, fetchingError, saving, savingError, saveItem, storage, unsavedData,clearUnsavedData};
+  const value = { items, fetching, fetchingError, saving, savingError, saveItem, storage, unsavedData,clearUnsavedData,photos, takePhoto, deletePhoto};
   log('returns');
   return (
     <ItemContext.Provider value={value}>

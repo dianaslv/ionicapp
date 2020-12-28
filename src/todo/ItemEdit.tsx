@@ -27,12 +27,10 @@ interface ItemEditProps extends RouteComponentProps<{
 }> {}
 
 const ItemEdit: React.FC<ItemEditProps> = ({ history, match }) => {
-  const { items, saving, savingError, saveItem } = useContext(ItemContext);
+  const { items, saving, savingError, saveItem,photos, takePhoto, deletePhoto } = useContext(ItemContext);
   const [text, setText] = useState('');
   const [breed, setBreed] = useState('');
   const [item, setItem] = useState<ItemProps>();
-  const { networkStatus } = useNetwork();
-  const { photos, takePhoto, tempPhotos } = usePhotoGallery();
   useBackgroundTask(() => new Promise(resolve => {
     console.log('My Background Task');
     resolve();
@@ -48,8 +46,7 @@ const ItemEdit: React.FC<ItemEditProps> = ({ history, match }) => {
     }
   }, [match.params.id, items]);
   const handleSave = () => {
-    console.log({ text, breed, photos:tempPhotos })
-    const editedItem = item ? { ...item, text, breed, photos:tempPhotos } : { text, breed, photos:tempPhotos };
+    const editedItem = item ? { ...item, text, breed, photos } : { text, breed, photos };
     saveItem && saveItem(editedItem).then(() => history.push('/items'));
   };
   log('render');
@@ -72,7 +69,7 @@ const ItemEdit: React.FC<ItemEditProps> = ({ history, match }) => {
         <IonInput value={breed} onIonChange={e => setBreed(e.detail.value || '')} />
         <IonGrid>
           <IonRow>
-            {tempPhotos.map((photo, index) => (
+            {photos.map((photo: any, index: any) => (
                 <IonCol size="6" key={index}>
                   <IonImg src={photo.webviewPath}/>
                 </IonCol>
