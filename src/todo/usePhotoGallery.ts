@@ -9,14 +9,22 @@ export interface Photo {
   webviewPath?: string;
 }
 
+
+export interface TempPhoto {
+  cameraPhoto:any,
+  fileName:any
+}
+
+
 const PHOTO_STORAGE = 'photos';
 
 export function usePhotoGallery() {
   const { getPhoto } = useCamera();
   const [photos, setPhotos] = useState<Photo[]>([]);
+  const [tempPhotos, setTempPhotos] = useState<Photo[]>([]);
 
   const takePhoto = async () => {
-    console.log(photos);
+    console.log({photos,tempPhotos});
     const cameraPhoto = await getPhoto({
       resultType: CameraResultType.Uri,
       source: CameraSource.Camera,
@@ -24,9 +32,15 @@ export function usePhotoGallery() {
     });
     const fileName = new Date().getTime() + '.jpeg';
     const savedFileImage = await savePicture(cameraPhoto, fileName);
+    const newTempPhotos = [savedFileImage, ...tempPhotos];
     const newPhotos = [savedFileImage, ...photos];
     setPhotos(newPhotos);
     set(PHOTO_STORAGE, JSON.stringify(newPhotos));
+    setTempPhotos(newTempPhotos);
+  };
+
+  const saveTempPhotos = async () => {
+    setTempPhotos([]);
   };
 
   const { deleteFile, readFile, writeFile } = useFilesystem();
@@ -40,7 +54,7 @@ export function usePhotoGallery() {
 
     return {
       filepath: fileName,
-      webviewPath: photo.webPath
+      webviewPath: base64Data,
     };
   };
 
@@ -76,5 +90,7 @@ export function usePhotoGallery() {
     photos,
     takePhoto,
     deletePhoto,
+    tempPhotos,
+    saveTempPhotos
   };
 }

@@ -19,15 +19,17 @@ import {useNetwork} from "../useNetwork";
 import {useBackgroundTask} from "../useBackgroundTask";
 import {usePhotoGallery} from "./usePhotoGallery";
 import {camera} from "ionicons/icons";
-
+import {Photo} from "./usePhotoGallery";
 const log = getLogger('ItemEdit');
 
+
 interface ItemEditProps extends RouteComponentProps<{
-  id?: string;
+  id?: string,
+  photos?: any,
 }> {}
 
 const ItemEdit: React.FC<ItemEditProps> = ({ history, match }) => {
-  const { items, saving, savingError, saveItem,photos, takePhoto, deletePhoto } = useContext(ItemContext);
+  const { items, saving, savingError, saveItem,tempPhotos,photos, saveTempPhotos, takePhoto, deletePhoto } = useContext(ItemContext);
   const [text, setText] = useState('');
   const [breed, setBreed] = useState('');
   const [item, setItem] = useState<ItemProps>();
@@ -46,8 +48,28 @@ const ItemEdit: React.FC<ItemEditProps> = ({ history, match }) => {
     }
   }, [match.params.id, items]);
   const handleSave = () => {
-    const editedItem = item ? { ...item, text, breed, photos } : { text, breed, photos };
-    saveItem && saveItem(editedItem).then(() => history.push('/items'));
+    if(item){
+      console.log({item, tempPhotos});
+      const copyItem = {...item};
+      if(item.photos){
+        copyItem.photos = [...item.photos,...tempPhotos];
+        console.log('yes copyItem.photos');
+        console.log(copyItem.photos);
+      }
+      else{
+        console.log('copyItem.photos');
+        console.log(copyItem.photos);
+        copyItem.photos =tempPhotos;
+      }
+      copyItem.text=text;
+      copyItem.breed = breed;
+      console.log({copyItem});
+      saveItem && saveItem(copyItem).then(() => {saveTempPhotos(); history.push('/items')});
+    }
+    else{
+      const copyItem = {text, breed, photos:tempPhotos};
+      saveItem && saveItem(copyItem).then(() => {saveTempPhotos(); history.push('/items')});
+    }
   };
   log('render');
   return (
@@ -69,7 +91,12 @@ const ItemEdit: React.FC<ItemEditProps> = ({ history, match }) => {
         <IonInput value={breed} onIonChange={e => setBreed(e.detail.value || '')} />
         <IonGrid>
           <IonRow>
-            {photos.map((photo: any, index: any) => (
+            {item?.photos&&item?.photos.map((photo: any, index: any) => (
+                <IonCol size="6" key={index}>
+                  <IonImg src={photo.webviewPath}/>
+                </IonCol>
+            ))}
+            {tempPhotos.map((photo: any, index: any) => (
                 <IonCol size="6" key={index}>
                   <IonImg src={photo.webviewPath}/>
                 </IonCol>

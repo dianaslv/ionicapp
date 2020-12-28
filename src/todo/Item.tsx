@@ -1,12 +1,14 @@
 import React from 'react';
 import {IonCol, IonGrid, IonImg, IonItem, IonLabel, IonRow} from '@ionic/react';
 import { ItemProps } from './ItemProps';
+import {base64FromPath} from "@ionic/react-hooks/filesystem";
 
 interface ItemPropsExt extends ItemProps {
   onEdit: (_id?: string) => void;
 }
 
 const Item: React.FC<ItemPropsExt> = ({ _id, text,breed, photos, onEdit }) => {
+    console.log({photos});
   return (
     <IonItem onClick={() => onEdit(_id)}>
         <IonLabel>{text}</IonLabel>

@@ -29,7 +29,7 @@ const log = getLogger('ItemList');
 
 const ItemList: React.FC<RouteComponentProps> = ({ history }) => {
   const [filter, setFilter] = useState<string | undefined>(undefined);
-  const { items, fetching, fetchingError, unsavedData, clearUnsavedData, saveItem,photos, takePhoto, deletePhoto } = useContext(ItemContext);
+  const { items, fetching, fetchingError, unsavedData, clearUnsavedData, saveItem,photos, deletePhoto } = useContext(ItemContext);
   const [filteredItems, setFilteredItems] = useState<ItemProps[]| undefined>(items);
   const [searchValue, setSearchValue] = useState<string>('');
   const { storage } = useContext(AuthContext);
@@ -108,6 +108,11 @@ const ItemList: React.FC<RouteComponentProps> = ({ history }) => {
     fetchData(true);
   }, [filter]);
 
+  function getPhotos(itemPhotos: Photo[]) {
+    console.log({photos,itemPhotos})
+    return itemPhotos? itemPhotos : [];
+  }
+
 
   return (
     <IonPage>
@@ -139,7 +144,7 @@ const ItemList: React.FC<RouteComponentProps> = ({ history }) => {
           <IonList>
             {filteredItems
                 .filter(({ _id, text }) => text.indexOf(searchValue) >= 0)
-                .map(({ _id, text,breed }) => <Item key={_id} _id={_id} text={text} onEdit={id => history.push(`/item/${id}`)} breed={breed} photos={photos}/>)}
+                .map(({ _id, text,breed, photos }) => <Item key={_id} _id={_id} text={text} onEdit={id => history.push(`/item/${id}`)} breed={breed} photos={getPhotos(photos)}/>)}
           </IonList>
         }
         {fetchingError && (
