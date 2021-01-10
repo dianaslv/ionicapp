@@ -1,4 +1,4 @@
-export const baseUrl = '192.168.0.101:3001';
+export const baseUrl = '192.168.0.100:3001';
 
 export const getLogger: (tag: string) => (...args: any) => void =
     tag => (...args) => console.log(tag, ...args);

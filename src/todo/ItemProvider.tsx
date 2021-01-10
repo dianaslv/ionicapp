@@ -2,7 +2,7 @@ import React, {useCallback, useContext, useEffect, useReducer, useState} from 'r
 import PropTypes from 'prop-types';
 import { getLogger } from '../core';
 import { ItemProps } from './ItemProps';
-import { createItem, getItems, newWebSocket, updateItem } from './itemApi';
+import {createItem, getItems, getPagination, newWebSocket, updateItem} from './itemApi';
 import { AuthContext } from '../auth';
 import {useNetwork} from "../useNetwork";
 import {useBackgroundTask} from "../useBackgroundTask";
@@ -26,6 +26,8 @@ export interface ItemsState {
   deletePhoto?: any,
   tempPhotos?: any,
   saveTempPhotos?: any,
+  fetchItems?: any,
+  noSkipped:any
 }
 
 interface ActionProps {
@@ -36,7 +38,8 @@ interface ActionProps {
 const initialState: ItemsState = {
   fetching: false,
   saving: false,
-  unsavedData: []
+  unsavedData: [],
+  noSkipped: 0
 };
 
 const FETCH_ITEMS_STARTED = 'FETCH_ITEMS_STARTED';
@@ -54,7 +57,7 @@ const reducer: (state: ItemsState, action: ActionProps) => ItemsState =
       case FETCH_ITEMS_STARTED:
         return { ...state, fetching: true, fetchingError: null };
       case FETCH_ITEMS_SUCCEEDED:
-        return { ...state, items: payload.items, fetching: false };
+        return { ...state, items: payload.items, noSkipped: payload.noSkipped, fetching: false };
       case FETCH_ITEMS_FAILED:
         return { ...state, fetchingError: payload.error, fetching: false };
       case SAVE_ITEM_STARTED:
@@ -98,9 +101,10 @@ interface ItemProviderProps {
 export const ItemProvider: React.FC<ItemProviderProps> = ({ children }) => {
   const { storage, tokenFound } = useContext(AuthContext);
   const [state, dispatch] = useReducer(reducer, initialState);
-  const { items, fetching, fetchingError, saving, savingError, unsavedData} = state;
+  const { items, fetching, fetchingError, saving, savingError, unsavedData, noSkipped} = state;
   const { networkStatus } = useNetwork();
   const { photos, takePhoto, deletePhoto,tempPhotos, saveTempPhotos, } = usePhotoGallery();
+  const limit = 10;
 
   useBackgroundTask(() => new Promise(async resolve => {
     console.log(networkStatus.connected)
@@ -124,7 +128,7 @@ export const ItemProvider: React.FC<ItemProviderProps> = ({ children }) => {
   const clearUnsavedData=()=>{
     dispatch({ type: CLEAN_UNPROCESSED_ITEMS});
   }
-  const value = { items, fetching, fetchingError, saving, savingError, saveItem, storage, unsavedData,clearUnsavedData,photos, takePhoto, deletePhoto,tempPhotos, saveTempPhotos,};
+  const value = { noSkipped,fetchItems, items, fetching, fetchingError, saving, savingError, saveItem, storage, unsavedData,clearUnsavedData,photos, takePhoto, deletePhoto,tempPhotos, saveTempPhotos,};
   log('returns');
   return (
     <ItemContext.Provider value={value}>
@@ -132,45 +136,57 @@ export const ItemProvider: React.FC<ItemProviderProps> = ({ children }) => {
     </ItemContext.Provider>
   );
 
+  async function fetchItems(canceled: boolean) {
+    let res = await storage.get({ key: 'token' });
+    console.log(res);
+    if (!res?.value?.trim()) {
+      return;
+    }
+    try {
+      if(res?.value){
+        console.log({noSkipped, limit})
+        log('fetchItems started');
+        dispatch({ type: FETCH_ITEMS_STARTED });
+        //const items = await getItems(res?.value);
+        const newItems = await getPagination(res?.value, noSkipped, limit);
+        //console.log({itemsPagination});
+        console.log(newItems,JSON.stringify(newItems));
+        let newData = [];
+        if(items){
+          for(let i = 0, len = items.length; i < len; i++) {
+            newData.push(items[i]);
+          }
+        }
+        for(let i = 0, len = newItems.length; i < len; i++) {
+          newData.push(newItems[i]);
+        }
+        console.log({newData})
+        log('fetchItems succeeded');
+        if (!canceled) {
+          console.log(newItems);
+          await storage.set({
+            key: 'items',
+            value: JSON.stringify(newItems),
+          });
+          dispatch({ type: FETCH_ITEMS_SUCCEEDED, payload: { items: newData, noSkipped: noSkipped+10 } });
+        }
+      }
+    } catch (error) {
+      log('fetchItems failed');
+      const itemsStorage = await storage.get({key: 'items'});
+      if(itemsStorage === undefined) dispatch({ type: FETCH_ITEMS_SUCCEEDED, payload: []  });
+      else{
+        dispatch({ type: FETCH_ITEMS_SUCCEEDED, payload: { itemsStorage, noSkipped: noSkipped+10  } });
+      }
+    }
+  }
 
   function getItemsEffect() {
     let canceled = false;
     console.log("hey from here")
-    fetchItems();
+    fetchItems(false);
     return () => {
       canceled = true;
-    }
-
-    async function fetchItems() {
-        let res = await storage.get({ key: 'token' });
-        console.log(res);
-        if (!res?.value?.trim()) {
-          return;
-        }
-        try {
-          if(res?.value){
-            log('fetchItems started');
-            dispatch({ type: FETCH_ITEMS_STARTED });
-            const items = await getItems(res?.value);
-            console.log(items,JSON.stringify(items));
-            log('fetchItems succeeded');
-            if (!canceled) {
-              console.log(items);
-              await storage.set({
-                key: 'items',
-                value: JSON.stringify(items),
-              });
-              dispatch({ type: FETCH_ITEMS_SUCCEEDED, payload: { items } });
-            }
-          }
-        } catch (error) {
-          log('fetchItems failed');
-          const itemsStorage = await storage.get({key: 'items'});
-          if(itemsStorage === undefined) dispatch({ type: FETCH_ITEMS_SUCCEEDED, payload: []  });
-          else{
-            dispatch({ type: FETCH_ITEMS_SUCCEEDED, payload: { itemsStorage } });
-          }
-        }
     }
   }
 

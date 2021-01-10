@@ -8,6 +8,11 @@ export const getItems: (token: string) => Promise<ItemProps[]> = token => {
   return withLogs(axios.get(itemUrl, authConfig(token)), 'getItems');
 }
 
+
+export const getPagination: (token: string, skip: any, length: any) => Promise<ItemProps[]> = (token, skip, length) => {
+  return withLogs(axios.post(`${itemUrl}/pagination`, {skip, length}, authConfig(token)), 'getPagination');
+}
+
 export const createItem: (token: string, item: ItemProps) => Promise<ItemProps[]> = (token, item) => {
   return withLogs(axios.post(itemUrl, item, authConfig(token)), 'createItem');
 }

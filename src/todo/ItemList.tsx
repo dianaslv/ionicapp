@@ -29,13 +29,14 @@ const log = getLogger('ItemList');
 
 const ItemList: React.FC<RouteComponentProps> = ({ history }) => {
   const [filter, setFilter] = useState<string | undefined>(undefined);
-  const { items, fetching, fetchingError, unsavedData, clearUnsavedData, saveItem,photos, deletePhoto } = useContext(ItemContext);
-  const [filteredItems, setFilteredItems] = useState<ItemProps[]| undefined>(items);
+  const { items, fetching, fetchingError, unsavedData, clearUnsavedData, saveItem,photos, deletePhoto,fetchItems } = useContext(ItemContext);
+  const [filteredItems, setFilteredItems] = useState<ItemProps[]| undefined>([]);
   const [searchValue, setSearchValue] = useState<string>('');
   const { storage } = useContext(AuthContext);
   let storageItems: any[] = [];
   const [photoToDelete, setPhotoToDelete] = useState<Photo>();
   const { networkStatus } = useNetwork();
+  const [disableInfiniteScroll, setDisableInfiniteScroll] = useState<boolean>(false);
 
   useBackgroundTask(() => new Promise(async resolve => {
     console.log(networkStatus.connected)
@@ -79,40 +80,27 @@ const ItemList: React.FC<RouteComponentProps> = ({ history }) => {
 
 
   const disableFilter = () => {
-    if(items)
-      setFilteredItems(items);
-    else
-      storage.get({ key: 'items' }).then(res =>{
-        console.log(res?.value)
-        storageItems = JSON.parse(res?.value);
-        setFilteredItems(storageItems);
-      })
+    setFilteredItems([]);
   };
 
-
-  async function fetchData(reset?: boolean) {
-    const data1: ItemProps[] = []
-    if(items) {
-      console.log(items);
-      items?.filter(({ ...item})=> {if(item.breed === filter) data1.push(item) });
-      setFilteredItems(data1);
-    }
-    else if(filteredItems){
-      console.log(storageItems);
-      filteredItems?.filter(({ ...item})=> {if(item.breed === filter) data1.push(item) });
-      setFilteredItems(data1);
-    }
-  }
-
   useEffect(() => {
-    fetchData(true);
+    const data1: ItemProps[] = []
+    items?.map(({ ...item})=> {if(item.breed === filter) data1.push(item) });
+    setFilteredItems(data1);
   }, [filter]);
 
   function getPhotos(itemPhotos: Photo[]) {
-    console.log({photos,itemPhotos})
     return itemPhotos? itemPhotos : [];
   }
 
+  async function searchNext($event: CustomEvent<void>) {
+    console.log("hei from scroll");
+    fetchItems(false);
+    ($event.target as HTMLIonInfiniteScrollElement).complete();
+  }
+
+
+  console.log(filteredItems);
 
   return (
     <IonPage>
@@ -128,7 +116,7 @@ const ItemList: React.FC<RouteComponentProps> = ({ history }) => {
 
         <IonLoading isOpen={fetching} message="Fetching items"/>
         <IonSelect value={filter} placeholder="Select smthg" onIonChange={e => setFilter(e.detail.value)}>
-          {filteredItems && filteredItems?.map(({ _id, breed }) => <IonSelectOption key={_id} value={breed}>{breed}</IonSelectOption>)}
+          {items && items?.map(({ _id, breed }) => <IonSelectOption key={_id} value={breed}>{breed}</IonSelectOption>)}
         </IonSelect>
         <IonFabButton onClick={disableFilter}>
           <IonIcon icon={closeOutline}/>
@@ -140,13 +128,20 @@ const ItemList: React.FC<RouteComponentProps> = ({ history }) => {
             onIonChange={e => setSearchValue(e.detail.value!)}>
         </IonSearchbar>
 
-        {filteredItems &&
-          <IonList>
-            {filteredItems
-                .filter(({ _id, text }) => text.indexOf(searchValue) >= 0)
-                .map(({ _id, text,breed, photos }) => <Item key={_id} _id={_id} text={text} onEdit={id => history.push(`/item/${id}`)} breed={breed} photos={getPhotos(photos)}/>)}
-          </IonList>
+        {filteredItems && filteredItems?.length>0 ?
+            <IonList>
+              {filteredItems && filteredItems
+                  .filter(({ _id, text }) => text.indexOf(searchValue) >= 0)
+                  .map(({ _id, text,breed, photos, lat, lng }) => <Item key={_id} _id={_id} text={text}  onEdit={id => history.push(`/item/${id}`)} breed={breed} photos={getPhotos(photos)} lat={lat||'lat not set'} lng={lng||'lng not set'}/>)}
+            </IonList>
+            :
+            <IonList>
+              {items && items
+                  .filter(({ _id, text }) => text.indexOf(searchValue) >= 0)
+                  .map(({ _id, text,breed, photos, lat, lng }) => <Item key={_id} _id={_id} text={text}  onEdit={id => history.push(`/item/${id}`)} breed={breed} photos={getPhotos(photos)} lat={lat||'lat not set'} lng={lng||'lng not set'}/>)}
+            </IonList>
         }
+
         {fetchingError && (
           <div>{fetchingError.message || 'Failed to fetch items'}</div>
         )}
@@ -175,6 +170,12 @@ const ItemList: React.FC<RouteComponentProps> = ({ history }) => {
             }]}
             onDidDismiss={() => setPhotoToDelete(undefined)}
         />
+        <IonInfiniteScroll threshold="100px" disabled={disableInfiniteScroll}
+                           onIonInfinite={(e: CustomEvent<void>) => searchNext(e)}>
+          <IonInfiniteScrollContent
+              loadingText="Loading more good doggos...">
+          </IonInfiniteScrollContent>
+        </IonInfiniteScroll>
       </IonContent>
     </IonPage>
   );

@@ -7,8 +7,7 @@ interface ItemPropsExt extends ItemProps {
   onEdit: (_id?: string) => void;
 }
 
-const Item: React.FC<ItemPropsExt> = ({ _id, text,breed, photos, onEdit }) => {
-    console.log({photos});
+const Item: React.FC<ItemPropsExt> = ({ _id, text,breed, photos,lat,lng, onEdit }) => {
   return (
     <IonItem onClick={() => onEdit(_id)}>
         <IonLabel>{text}</IonLabel>
@@ -22,6 +21,8 @@ const Item: React.FC<ItemPropsExt> = ({ _id, text,breed, photos, onEdit }) => {
                 ))}
             </IonRow>
         </IonGrid>
+        <IonLabel>{lat}</IonLabel>
+        <IonLabel>{lng}</IonLabel>
     </IonItem>
   );
 };

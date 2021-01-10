@@ -5,4 +5,6 @@ export interface ItemProps {
   text: string;
   breed: string;
   photos: Photo[];
+  lat?:any;
+  lng?:any;
 }
